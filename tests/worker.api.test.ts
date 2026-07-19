@@ -6,12 +6,10 @@ import type { WorkerEnv } from "@worker/types";
 import { createMemoryRepositories, sampleSettings } from "./fakes";
 
 const salt = "00112233445566778899aabbccddeeff";
-let viewerHash = "";
 let editorHash = "";
 let adminHash = "";
 
 beforeAll(async () => {
-  viewerHash = `pbkdf2_sha256$1000$${salt}$${await hashPassword("viewer-password", salt, 1000)}`;
   editorHash = `pbkdf2_sha256$1000$${salt}$${await hashPassword("editor-password", salt, 1000)}`;
   adminHash = `pbkdf2_sha256$1000$${salt}$${await hashPassword("admin-password", salt, 1000)}`;
 });
@@ -20,7 +18,6 @@ function createEnv(): WorkerEnv {
   return {
     DB: {} as WorkerEnv["DB"],
     SESSION_SECRET: "session-secret",
-    VIEWER_PASSWORD_HASH: viewerHash,
     EDITOR_PASSWORD_HASH: editorHash,
     AUTH_PASSWORD_HASH: adminHash,
   };
@@ -30,6 +27,20 @@ describe("worker api", () => {
   it("returns health check", async () => {
     const response = await handleRequest(new Request("https://example.com/api/health"), createEnv(), createMemoryRepositories());
     expect(response.status).toBe(200);
+  });
+
+  it("returns viewer mode when no session cookie exists", async () => {
+    const response = await handleRequest(
+      new Request("https://example.com/api/auth/session"),
+      createEnv(),
+      createMemoryRepositories(),
+    );
+    const body = (await response.json()) as {
+      data: { isAuthenticated: boolean; user: { role: string; displayName: string } };
+    };
+    expect(response.status).toBe(200);
+    expect(body.data.isAuthenticated).toBe(false);
+    expect(body.data.user.role).toBe("viewer");
   });
 
   it("handles successful OPTIONS preflight", async () => {
@@ -135,28 +146,24 @@ describe("worker api", () => {
     expect(response.status).toBe(401);
   });
 
-  it("requires auth for settings", async () => {
+  it("allows settings reads in viewer mode without login", async () => {
     const response = await handleRequest(new Request("https://example.com/api/settings"), createEnv(), createMemoryRepositories());
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(200);
   });
 
-  it("prevents viewer updates", async () => {
-    const repositories = createMemoryRepositories();
-    const { sessionToken, csrfToken } = await loginAndExtractTokens("viewer-password", repositories);
+  it("requires editor or admin auth for settings updates", async () => {
     const response = await handleRequest(
       new Request("https://example.com/api/settings", {
         method: "PUT",
         headers: {
-          Cookie: `travel_web_session=${sessionToken}`,
-          "X-CSRF-Token": csrfToken,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(sampleSettings),
       }),
       createEnv(),
-      repositories,
+      createMemoryRepositories(),
     );
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
   });
 
   it("allows editor updates", async () => {

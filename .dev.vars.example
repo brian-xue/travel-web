@@ -1,5 +1,4 @@
 MAPTILER_API_KEY=replace_me
-VIEWER_PASSWORD_HASH=replace_me
 EDITOR_PASSWORD_HASH=replace_me
 AUTH_PASSWORD_HASH=replace_me
 SESSION_SECRET=replace_me

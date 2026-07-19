@@ -11,7 +11,7 @@ export function ProtectedRoute({ children }: PropsWithChildren) {
     return <LoadingState label="Checking session" />;
   }
 
-  if (!session.isAuthenticated) {
+  if (!session.user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 

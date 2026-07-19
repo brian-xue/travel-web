@@ -46,7 +46,7 @@ travel-web/
 - `/admin`
 - `/login`
 
-Protected routes are wrapped by `ProtectedRoute`, which redirects anonymous visitors to `/login`.
+Routes are wrapped by `ProtectedRoute`, which allows default viewer-mode access and only uses login for elevated edit sessions.
 
 ## 5. Worker Entry And Middleware
 
@@ -100,9 +100,8 @@ All timestamps are stored in UTC ISO 8601 format.
 
 ## 7. Authentication Flow
 
-This implementation supports the recommended two-password shape plus a fallback admin password:
+This implementation uses open viewer-mode access plus password-protected elevated roles:
 
-- `VIEWER_PASSWORD_HASH`
 - `EDITOR_PASSWORD_HASH`
 - `AUTH_PASSWORD_HASH`
 
@@ -110,18 +109,19 @@ Passwords are verified server-side with PBKDF2-SHA256 hashes in the format `pbkd
 
 Login flow:
 
-1. Client posts a password to `/api/auth/login`.
-2. Worker applies a small in-memory rate limit by IP.
-3. Worker matches the password hash to a role.
-4. Worker creates a random session token and CSRF token.
-5. Worker stores only the hashed session token in D1.
-6. Worker returns a `HttpOnly`, `Secure`, `SameSite=Lax` cookie.
+1. Unauthenticated requests are treated as viewer-mode access.
+2. Client posts an editor or admin password to `/api/auth/login` for elevated access.
+3. Worker applies a small in-memory rate limit by IP.
+4. Worker matches the password hash to an elevated role.
+5. Worker creates a random session token and CSRF token.
+6. Worker stores only the hashed session token in D1.
+7. Worker returns a `HttpOnly`, `Secure`, `SameSite=Lax` cookie.
 
 Logout deletes the stored session and clears the cookie.
 
 ## 8. Authorization Model
 
-- `viewer`: can sign in and read settings
+- `viewer`: available without a password for read-only access
 - `editor`: can sign in and update settings
 - `admin`: can sign in, update settings, and is reserved for future admin-only tools
 
@@ -183,12 +183,13 @@ Included tests cover:
 - password/session validation helpers
 - role checks
 - auth flow success and failure
+- viewer-mode session fallback
 - protected settings access
 - logout
 - health check
 - frontend login render
 - navigation render
-- redirect to `/login`
+- viewer-mode route access
 - empty state visibility
 - mobile navigation toggle presence
 
@@ -210,7 +211,6 @@ Set each secret with `wrangler secret put`:
 
 - `SESSION_SECRET`
 - `AUTH_PASSWORD_HASH`
-- `VIEWER_PASSWORD_HASH`
 - `EDITOR_PASSWORD_HASH`
 - `MAPTILER_API_KEY`
 - `NWS_USER_AGENT`
@@ -229,7 +229,7 @@ Set each secret with `wrangler secret put`:
 ## 14. Implemented Now
 
 - responsive frontend shell and routes
-- protected login flow UI
+- public viewer mode plus elevated login UI
 - Worker auth/session endpoints
 - Worker health endpoint
 - settings read/update endpoint

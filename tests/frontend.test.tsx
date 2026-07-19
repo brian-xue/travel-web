@@ -12,7 +12,7 @@ describe("frontend shell", () => {
   it("renders the login page", async () => {
     mockSessionResponse({
       isAuthenticated: false,
-      user: null,
+      user: { id: "user-viewer", displayName: "Viewer Mode", role: "viewer" },
       expiresAt: null,
       csrfToken: null,
     });
@@ -46,10 +46,10 @@ describe("frontend shell", () => {
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
 
-  it("redirects anonymous users to login", async () => {
+  it("allows viewer mode through protected routes without login", async () => {
     mockSessionResponse({
       isAuthenticated: false,
-      user: null,
+      user: { id: "user-viewer", displayName: "Viewer Mode", role: "viewer" },
       expiresAt: null,
       csrfToken: null,
     });
@@ -70,7 +70,7 @@ describe("frontend shell", () => {
         </AuthProvider>
       </MemoryRouter>,
     );
-    expect(await screen.findByRole("heading", { name: "travel-web" })).toBeInTheDocument();
+    expect(await screen.findByText("Protected")).toBeInTheDocument();
   });
 
   it("shows an empty state component", () => {
@@ -81,10 +81,10 @@ describe("frontend shell", () => {
   it("keeps a mobile menu control available", async () => {
     Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
     mockSessionResponse({
-      isAuthenticated: true,
-      user: { id: "user-viewer", displayName: "Sample Viewer", role: "viewer" },
-      expiresAt: "2026-07-19T00:00:00.000Z",
-      csrfToken: "csrf-token",
+      isAuthenticated: false,
+      user: { id: "user-viewer", displayName: "Viewer Mode", role: "viewer" },
+      expiresAt: null,
+      csrfToken: null,
     });
     render(
       <MemoryRouter>

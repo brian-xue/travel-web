@@ -11,7 +11,11 @@ export interface AuthContextValue {
 
 export const anonymousSession: SessionState = {
   isAuthenticated: false,
-  user: null,
+  user: {
+    id: "user-viewer",
+    displayName: "Viewer Mode",
+    role: "viewer",
+  },
   expiresAt: null,
   csrfToken: null,
 };

@@ -2,6 +2,8 @@
 
 `travel-web` is a personal travel planning skeleton built with React, Vite, TypeScript, and a Cloudflare Worker + D1 backend. This phase focuses on project structure, authenticated access, settings management, migrations, tests, and deployment guidance without storing any real itinerary data or secrets.
 
+Viewer mode is available without a password. Only editor and admin access require password-based login.
+
 ## Quick Start
 
 1. Install dependencies with `npm install`.

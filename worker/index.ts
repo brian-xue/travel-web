@@ -98,8 +98,7 @@ export async function handleRequest(request: Request, env: WorkerEnv, repositori
     }
 
     if (url.pathname === "/api/settings" && request.method === "GET") {
-      const unauthorized = ensureAuthenticated(context);
-      return applyCorsHeaders(request, unauthorized ?? (await getSettings(repositories)));
+      return applyCorsHeaders(request, await getSettings(repositories));
     }
 
     if (url.pathname === "/api/settings" && request.method === "PUT") {

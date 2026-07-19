@@ -61,7 +61,6 @@ export interface WorkerEnv {
   DB: D1DatabaseLike;
   MAPTILER_API_KEY?: string;
   AUTH_PASSWORD_HASH?: string;
-  VIEWER_PASSWORD_HASH?: string;
   EDITOR_PASSWORD_HASH?: string;
   SESSION_SECRET: string;
   NWS_USER_AGENT?: string;

@@ -6,12 +6,28 @@ import { jsonError, jsonSuccess } from "../lib/response";
 import { validateLoginBody } from "../lib/validation";
 import type { Repositories, WorkerEnv } from "../types";
 
+async function buildViewerSession(repositories: Repositories) {
+  const viewer = await repositories.users.getFirstByRole("viewer");
+  if (!viewer || !viewer.enabled) {
+    return {
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      csrfToken: null,
+    };
+  }
+
+  return {
+    isAuthenticated: false,
+    user: { id: viewer.id, displayName: viewer.displayName, role: viewer.role },
+    expiresAt: null,
+    csrfToken: null,
+  };
+}
+
 async function matchRoleFromPassword(password: string, env: WorkerEnv) {
   if (env.EDITOR_PASSWORD_HASH && (await verifyPassword(password, env.EDITOR_PASSWORD_HASH))) {
     return "editor" as const;
-  }
-  if (env.VIEWER_PASSWORD_HASH && (await verifyPassword(password, env.VIEWER_PASSWORD_HASH))) {
-    return "viewer" as const;
   }
   if (env.AUTH_PASSWORD_HASH && (await verifyPassword(password, env.AUTH_PASSWORD_HASH))) {
     return "admin" as const;
@@ -81,33 +97,18 @@ export async function login(request: Request, env: WorkerEnv, repositories: Repo
 
 export async function getSession(token: string | null, env: WorkerEnv, repositories: Repositories) {
   if (!token) {
-    return jsonSuccess({
-      isAuthenticated: false,
-      user: null,
-      expiresAt: null,
-      csrfToken: null,
-    });
+    return jsonSuccess(await buildViewerSession(repositories));
   }
 
   const tokenHash = await hashSessionToken(token, env.SESSION_SECRET);
   const session = await repositories.sessions.findByTokenHash(tokenHash);
   if (!session || isExpired(session.expiresAt)) {
-    return jsonSuccess({
-      isAuthenticated: false,
-      user: null,
-      expiresAt: null,
-      csrfToken: null,
-    });
+    return jsonSuccess(await buildViewerSession(repositories));
   }
 
   const user = await repositories.users.getById(session.userId);
   if (!user || !user.enabled) {
-    return jsonSuccess({
-      isAuthenticated: false,
-      user: null,
-      expiresAt: null,
-      csrfToken: null,
-    });
+    return jsonSuccess(await buildViewerSession(repositories));
   }
 
   await repositories.sessions.touch(tokenHash, new Date().toISOString());

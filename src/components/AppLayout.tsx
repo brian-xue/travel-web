@@ -53,19 +53,25 @@ export function AppLayout({ children }: PropsWithChildren) {
             Menu
           </button>
           <div>
-            <p className="eyebrow">Signed in as</p>
+            <p className="eyebrow">{session.isAuthenticated ? "Signed in as" : "Viewing as"}</p>
             <strong>{session.user?.displayName ?? "Guest"}</strong>
           </div>
-          <button
-            className="secondary-button"
-            onClick={async () => {
-              await logout();
-              navigate("/login");
-            }}
-            type="button"
-          >
-            Logout
-          </button>
+          {session.isAuthenticated ? (
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                await logout();
+                navigate("/");
+              }}
+              type="button"
+            >
+              Logout
+            </button>
+          ) : (
+            <button className="secondary-button" onClick={() => navigate("/login")} type="button">
+              Editor Login
+            </button>
+          )}
         </header>
         <main className="main-content">{children}</main>
       </div>

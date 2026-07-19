@@ -26,10 +26,10 @@ export function LoginPage() {
             setError(loginError instanceof Error ? loginError.message : "Login failed");
           }
         }}
-      >
+        >
         <p className="eyebrow">Secure Access</p>
         <h1>travel-web</h1>
-        <p>Use a server-managed viewer, editor, or admin password. No secrets are stored in the frontend.</p>
+        <p>Viewer mode is open without a password. Use an editor or admin password here for write access.</p>
         <label>
           Password
           <input
