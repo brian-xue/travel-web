@@ -1,0 +1,11 @@
+name = "travel-web"
+main = "worker/index.ts"
+compatibility_date = "2026-07-18"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "travel-web-db"
+database_id = "replace-with-d1-database-id"
+
+[vars]
+NWS_USER_AGENT = "travel-web/1.0 contact@example.invalid"

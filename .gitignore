@@ -1,0 +1,91 @@
+# -----------------------------
+# Dependencies
+# -----------------------------
+node_modules/
+
+# -----------------------------
+# Build outputs
+# -----------------------------
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# -----------------------------
+# Local environment variables
+# Never commit real secrets
+# -----------------------------
+.env
+.env.local
+.env.*.local
+.dev.vars
+.dev.vars.*
+
+# Keep example configuration files
+!.env.example
+!.dev.vars.example
+
+# -----------------------------
+# Cloudflare Wrangler local files
+# -----------------------------
+.wrangler/
+.dev/
+wrangler.log
+*.wrangler.log
+
+# -----------------------------
+# Local D1 / SQLite databases
+# -----------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# -----------------------------
+# Test and tool caches
+# -----------------------------
+.cache/
+.eslintcache
+.nyc_output/
+vitest-results/
+test-results/
+playwright-report/
+
+# -----------------------------
+# Logs
+# -----------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# -----------------------------
+# Editor files
+# -----------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+*.swp
+*.swo
+*~
+
+# -----------------------------
+# macOS / Windows
+# -----------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# -----------------------------
+# Temporary files
+# -----------------------------
+tmp/
+temp/
+*.tmp
