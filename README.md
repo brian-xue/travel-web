@@ -2,7 +2,7 @@
 
 `travel-web` is a personal travel planning skeleton built with React, Vite, TypeScript, and a Cloudflare Worker + D1 backend. This phase focuses on project structure, authenticated access, settings management, migrations, tests, and deployment guidance without storing any real itinerary data or secrets.
 
-Viewer mode is available without a password. Only editor and admin access require password-based login.
+Viewer mode is available without a password. Editor and admin access use the same password form and require their respective password hash values.
 
 ## Quick Start
 
@@ -12,6 +12,11 @@ Viewer mode is available without a password. Only editor and admin access requir
 4. Run `npm run dev`.
 
 For split local development, the frontend may run on `http://localhost:5173` while the Worker API runs on `http://127.0.0.1:8787`. The Worker allows credentialed local CORS requests from `http://localhost:5173` and `http://127.0.0.1:5173`.
+
+If `MAPTILER_API_KEY` is configured in `.dev.vars`, both `/map` and `/admin/trip` can render a MapLibre basemap using the Worker-generated MapTiler style URL.
+The admin place editor also uses the Worker to proxy MapTiler forward-geocoding searches, so a place name can provide selectable coordinate suggestions without adding a second browser key configuration.
+
+For production, restrict the MapTiler key in the MapTiler console with Allowed HTTP origins. Allow only the deployed Cloudflare domain and the local development origins required by the team.
 
 ## Scripts
 

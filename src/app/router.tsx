@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedLayout } from "./ProtectedLayout";
 import { AdminPage } from "@/pages/AdminPage";
+import { AdminTripPage } from "@/pages/AdminTripPage";
 import { ChecklistsPage } from "@/pages/ChecklistsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "notes", element: <NotesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "admin", element: <AdminPage /> },
+      { path: "admin/trip", element: <AdminTripPage /> },
     ],
   },
   {

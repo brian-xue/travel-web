@@ -1,10 +1,17 @@
-# travel-web Architecture And Features
+# travel-web Architecture and Features
 
 ## 1. Project Goal
 
-`travel-web` is a personal travel planning website skeleton for authenticated trip planning, weather status, road monitoring, checklists, and notes. This phase intentionally stops at scaffolding, auth/session infrastructure, a settings API, sample UI states, and deployment-ready project structure.
+`travel-web` is a personal travel planning workspace for a fictional sample trip. The codebase supports read-only viewer access, password-protected editor/admin sessions, trip planning, place management, route uploads, weather caching, notes, and checklists without storing real travel details in source control.
 
-## 2. Tech Stack
+## 2. Current Phase
+
+As of Tuesday, August 11, 2026, the repository contains:
+
+- Phase 1 foundations: auth, sessions, D1 bootstrap, settings, shared UI shell
+- Phase 2 additions: trip domain models, trip editor, map view, weather cache flow, notes, checklists, and supporting APIs
+
+## 3. Tech Stack
 
 - TypeScript
 - React 19
@@ -16,257 +23,411 @@
 - Vitest
 - ESLint
 - Prettier
-
-## 3. Directory Structure
-
-```text
-travel-web/
-├── src/                  # Frontend app shell, routes, pages, and shared API client
-├── worker/               # Cloudflare Worker request handling, auth, repositories, and helpers
-├── migrations/           # D1 SQL migrations
-├── scripts/              # Utility scripts such as secret scanning
-├── tests/                # Frontend, API, and unit tests
-├── docs/                 # Architecture documentation
-├── .dev.vars.example
-├── .env.example
-├── README.md
-└── wrangler.toml
-```
+- MapLibre GL JS
 
 ## 4. Frontend Routes
 
 - `/` dashboard
-- `/trip`
-- `/map`
-- `/weather`
-- `/roads`
-- `/checklists`
-- `/notes`
-- `/settings`
-- `/admin`
-- `/login`
+- `/trip` published/viewer trip view
+- `/admin` admin landing page
+- `/admin/trip` trip editor
+- `/map` route and place map
+- `/weather` weather and alert view
+- `/checklists` shared checklist management
+- `/notes` markdown-backed notes
+- `/settings` app settings
+- `/login` editor/admin login
 
-Routes are wrapped by `ProtectedRoute`, which allows default viewer-mode access and only uses login for elevated edit sessions.
+Viewer mode is the default when no editor/admin session exists. `ProtectedRoute` now means “viewer or better”, not “must be logged in”.
 
-## 5. Worker Entry And Middleware
+## 5. Worker Entry and Middleware
 
 - Entry: `worker/index.ts`
-- Request context:
-  - parses the session cookie
-  - hashes the session token with `SESSION_SECRET`
-  - loads the session and user records
-- Route handlers:
-  - `POST /api/auth/login`
-  - `POST /api/auth/logout`
-  - `GET /api/auth/session`
-  - `GET /api/health`
-  - `GET /api/settings`
-  - `PUT /api/settings`
+- CORS:
+  - handled before normal dispatch
+  - allows `http://localhost:5173`
+  - allows `http://127.0.0.1:5173`
+  - supports credentialed requests
+- Session flow:
+  - no cookie: viewer-mode session payload
+  - valid cookie: editor/admin session payload
+- Main API groups:
+  - auth
+  - settings
+  - dashboard
+  - trips/days
+  - places/day-places
+  - routes
+  - weather/alerts/refresh
+  - notes
+  - checklists
+  - map
 
-Responses use a consistent envelope with `ok`, `data`, and `error`.
+All responses use the shared envelope:
 
-## 6. D1 Table Structure
+```json
+{
+  "ok": true,
+  "data": {},
+  "error": null
+}
+```
+
+## 6. Data Model
+
+### Core app tables
 
 - `app_settings`
-  - `id`
-  - `key`
-  - `value_json`
-  - `updated_at`
 - `users`
+- `sessions`
+- `audit_log`
+
+### Trip domain tables
+
+- `trips`
   - `id`
-  - `display_name`
-  - `role`
+  - `name`
+  - `description`
+  - `status`
+  - `published_version`
+  - `draft_version`
+  - `created_at`
+  - `updated_at`
+- `trip_days`
+  - `id`
+  - `trip_id`
+  - `day_number`
+  - `title`
+  - `summary`
+  - `estimated_distance_km`
+  - `estimated_drive_minutes`
+  - `google_maps_url`
+  - `enabled`
+  - `sort_order`
+  - `created_at`
+  - `updated_at`
+- `places`
+  - `id`
+  - `name`
+  - `place_type`
+  - `latitude`
+  - `longitude`
+  - `description_markdown`
+  - `official_url`
+  - `google_maps_url`
+  - `weather_enabled`
   - `enabled`
   - `created_at`
   - `updated_at`
-- `sessions`
+- `day_places`
   - `id`
-  - `user_id`
-  - `token_hash`
-  - `csrf_token`
+  - `trip_day_id`
+  - `place_id`
+  - `visit_order`
+  - `planned_arrival_text`
+  - `planned_duration_minutes`
+  - `note_markdown`
+  - `created_at`
+  - `updated_at`
+- `routes`
+  - `id`
+  - `trip_day_id`
+  - `name`
+  - `geojson`
+  - `style_json`
+  - `enabled`
+  - `created_at`
+  - `updated_at`
+- `notes`
+  - `id`
+  - `trip_id`
+  - `category`
+  - `title`
+  - `content_markdown`
+  - `sort_order`
+  - `enabled`
+  - `created_at`
+  - `updated_at`
+- `checklist_items`
+  - `id`
+  - `trip_id`
+  - `list_type`
+  - `category`
+  - `title`
+  - `quantity`
+  - `priority`
+  - `status`
+  - `note`
+  - `sort_order`
+  - `created_at`
+  - `updated_at`
+
+### Weather cache tables
+
+- `weather_snapshots`
+  - `id`
+  - `place_id`
+  - `current_temperature`
+  - `apparent_temperature`
+  - `weather_code`
+  - `precipitation_probability`
+  - `precipitation`
+  - `wind_speed`
+  - `wind_gust`
+  - `wind_direction`
+  - `daily_high`
+  - `daily_low`
+  - `sunrise`
+  - `sunset`
+  - `fetched_at`
+  - `source`
+  - `stale`
+  - `fetch_error`
+- `weather_alerts`
+  - `id`
+  - `place_id`
+  - `event`
+  - `severity`
+  - `urgency`
+  - `headline`
+  - `description`
+  - `instruction`
+  - `official_url`
+  - `effective_at`
   - `expires_at`
-  - `created_at`
-  - `last_seen_at`
-- `audit_log`
-  - `id`
-  - `actor_user_id`
-  - `action`
-  - `entity_type`
-  - `entity_id`
-  - `metadata_json`
-  - `created_at`
+  - `fetched_at`
 
-All timestamps are stored in UTC ISO 8601 format.
+## 7. Table Relationships
 
-## 7. Authentication Flow
+- one `trip` has many `trip_days`
+- one `trip_day` has many `day_places`
+- one `day_place` points to one `place`
+- one `trip_day` has many `routes`
+- one `trip` has many `notes`
+- one `trip` has many `checklist_items`
+- weather snapshots are linked to `places`
+- weather alerts are linked to `places` when available
 
-This implementation uses open viewer-mode access plus password-protected elevated roles:
+## 8. Trip Editing Flow
 
-- `EDITOR_PASSWORD_HASH`
-- `AUTH_PASSWORD_HASH`
+The current admin workflow supports real editing for trips, days, places, day-place assignments, and routes directly inside `/admin/trip`:
 
-Passwords are verified server-side with PBKDF2-SHA256 hashes in the format `pbkdf2_sha256$iterations$salt$hash`.
+1. Editor/admin opens `/admin/trip`
+2. Create or select a trip
+3. Edit the trip name, description, and status
+4. Add days, then edit day title, summary, distance, drive time, Google Maps URL, and enabled state
+5. Create reusable places in the place library
+6. Search place names through the Worker-backed MapTiler geocoder, select a result, and edit place name, type, coordinates, markdown, URLs, weather flag, and enabled state
+7. Attach places to days with arrival text, duration, and note metadata
+8. Add a sample route to a day, then edit route name, GeoJSON, style JSON, and enabled state
+9. Review the MapTiler-backed map preview for the currently selected trip
+10. Publish the trip
 
-Login flow:
+The current UI now covers the core Phase 2 authoring workflow in one place. It is still intentionally simple and does not yet include advanced drag-and-drop ordering, rich route drawing tools, or snapshot publishing.
 
-1. Unauthenticated requests are treated as viewer-mode access.
-2. Client posts an editor or admin password to `/api/auth/login` for elevated access.
-3. Worker applies a small in-memory rate limit by IP.
-4. Worker matches the password hash to an elevated role.
-5. Worker creates a random session token and CSRF token.
-6. Worker stores only the hashed session token in D1.
-7. Worker returns a `HttpOnly`, `Secure`, `SameSite=Lax` cookie.
+## 9. Draft and Publish Strategy
 
-Logout deletes the stored session and clears the cookie.
+The repository uses a simplified publish model:
 
-## 8. Authorization Model
+- records auto-save directly into the live tables
+- `draft_version` increments on trip updates
+- publishing marks the trip as `published`
+- `published_version` is updated to the current `draft_version`
 
-- `viewer`: available without a password for read-only access
-- `editor`: can sign in and update settings
-- `admin`: can sign in, update settings, and is reserved for future admin-only tools
+This is not a full immutable snapshot system. Viewer mode currently reads the latest records for the published trip. That keeps the implementation manageable for this phase, but it means published content is not isolated from later draft edits. This limitation should be considered if a stricter publish workflow is needed in a future phase.
 
-Worker handlers return:
+## 10. Sync and Conflict Strategy
 
-- `401` when not authenticated
-- `403` when authenticated but not authorized
+The project uses shared D1-backed state across devices.
 
-## 9. Secret Management
+- writes update `updated_at`
+- frontend pages fetch fresh data on load
+- manual refresh is available on weather and admin workflows
+- update requests may send `expectedUpdatedAt`
+- if the stored record changed, the API returns `409 Conflict`
 
-Secrets never live in the repo. Real values belong in:
+The conflict model is last-write-wins with explicit detection. Silent overwrites are avoided when `expectedUpdatedAt` is supplied.
 
-- local `.dev.vars`
-- Cloudflare Dashboard secrets
-- `wrangler secret put`
+## 11. Authentication and Authorization
 
-Tracked example files only use placeholder text:
+### Viewer mode
 
-- `.dev.vars.example`
-- `.env.example`
+- available without a password
+- can browse published data, notes, checklists, map, and weather
+- cannot trigger protected write endpoints
 
-`scripts/check-secrets.mjs` provides a lightweight secret scan for obvious mistakes. Git history should also be checked before publishing.
+### Editor mode
 
-## 10. CSRF Strategy
+- password-protected with `EDITOR_PASSWORD_HASH`
+- can create and edit trip content
+- can refresh weather manually
 
-The Worker uses `SameSite=Lax` cookies plus a required `X-CSRF-Token` header for state-changing endpoints. The token is generated per session and stored server-side. This keeps the implementation simple while adding a server-verifiable second factor for write requests.
+### Admin mode
 
-## 10.1 Local Development CORS
+- password-protected with `AUTH_PASSWORD_HASH`
+- currently inherits editor write power
+- uses the same login form as editor mode, but resolves to the admin role when the admin password matches
+- reserved for future restore/import/export/admin-only operations
 
-For local development, `worker/index.ts` handles credentialed CORS before normal route dispatch.
+## 12. CSRF Strategy
 
-- Allowed origins:
-  - `http://localhost:5173`
-  - `http://127.0.0.1:5173`
-- `OPTIONS` preflight requests return `204`
-- Allowed origins receive `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, and `Vary: Origin`
-- The Worker does not use `Access-Control-Allow-Origin: *` because session-based auth uses cookies
+State-changing requests use:
 
-## 11. Local Run
+- `SameSite=Lax` cookies
+- `HttpOnly`
+- `Secure`
+- `X-CSRF-Token`
 
-1. `npm install`
-2. `cp .dev.vars.example .dev.vars`
-3. Replace placeholders with generated values
-4. `npm run dev`
+Viewer mode does not need a CSRF token because it does not own a write-capable session.
 
-For local Worker work, use Wrangler with the same `.dev.vars` file and a bound local D1 database. When the frontend is served by Vite on `http://localhost:5173`, the Worker can be served separately on `http://127.0.0.1:8787`.
+## 13. MapLibre Integration
 
-## 12. Testing
+The map page uses MapLibre GL JS with:
 
-- `npm run test`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run build`
-- `npm run check:secrets`
+- a MapTiler-hosted style URL
+- day route GeoJSON from D1
+- markers created from `places`
+- weather summaries from cached weather snapshots
 
-Included tests cover:
+### MapTiler Key Injection
 
-- response envelope helpers
-- password/session validation helpers
-- role checks
-- auth flow success and failure
+- the runtime expects `MAPTILER_API_KEY`
+- the Worker builds a style URL when the key is present
+- the frontend shows a configuration error when the key is missing
+- `/admin/trip` uses the same Worker-provided MapTiler style URL for live trip preview
+- because the map key is public in browser usage, domain restrictions should be configured in MapTiler
+
+### Basemap Caching
+
+- MapTiler tiles are fetched directly by the browser/provider
+- the app does not persist third-party basemap tiles in D1, KV, or R2
+- business data remains D1-backed and can be refreshed independently
+
+## 14. GeoJSON Import and Validation
+
+Route creation and updates validate:
+
+- JSON parse success
+- geometry type is `LineString` or `MultiLineString`
+- coordinate ranges are valid
+- payload size stays under the configured limit
+
+This validation is performed server-side in `worker/lib/validation.ts`.
+
+## 15. Google Maps URL Generation
+
+Two helper paths exist:
+
+- place search URLs
+- day directions URLs for ordered stop chains
+
+The helpers properly encode place names and lat/lon values before building Google Maps URLs.
+
+## 16. Weather Flow
+
+### Open-Meteo
+
+- fetched server-side
+- no API key required
+- cached into `weather_snapshots`
+- current conditions and single-day forecast values are stored
+
+### NWS Alerts
+
+- fetched server-side
+- `User-Agent` comes from configuration
+- alerts are cached into `weather_alerts`
+- original official URLs are preserved when returned by the API
+
+### Refresh Policy
+
+- settings support `30` or `60` minute intervals
+- manual refresh is editor/admin only
+- refresh skips when cached data is still inside the selected interval
+- stale cache behavior preserves older successful data on failures
+
+### Cron
+
+The current Worker code is prepared for server-side refresh behavior, but a full scheduled refresh path is still a follow-up item. Manual refresh and D1 cache persistence are already implemented.
+
+## 17. Notes and Checklists
+
+Notes and checklist items are editable through dedicated pages.
+
+- Notes use safe Markdown rendering
+- Checklist items support statuses such as `pending`, `packed`, and `purchased`
+- Viewer mode reads them without a password
+- Editor/admin sessions can create and update them
+
+## 18. API Surface in This Phase
+
+- `GET /api/dashboard`
+- `GET|POST /api/trips`
+- `GET|PUT|DELETE /api/trips/:id`
+- `POST /api/trips/:id/publish`
+- `GET|POST /api/trips/:id/days`
+- `PUT|DELETE /api/days/:id`
+- `POST /api/days/:id/copy`
+- `POST /api/days/reorder`
+- `GET|POST /api/places`
+- `PUT|DELETE /api/places/:id`
+- `GET /api/geocoding?q=...`
+- `POST /api/days/:id/places`
+- `DELETE /api/day-places/:id`
+- `POST /api/day-places/reorder`
+- `GET|POST /api/days/:id/routes`
+- `PUT|DELETE /api/routes/:id`
+- `GET|POST /api/notes`
+- `PUT|DELETE /api/notes/:id`
+- `GET|POST /api/checklists`
+- `PUT|DELETE /api/checklists/:id`
+- `GET /api/map`
+- `GET /api/weather`
+- `GET /api/weather/alerts`
+- `POST /api/weather/refresh`
+
+## 19. Testing
+
+Current automated coverage includes:
+
+- auth/session helpers
 - viewer-mode session fallback
-- protected settings access
-- logout
-- health check
-- frontend login render
-- navigation render
-- viewer-mode route access
-- empty state visibility
-- mobile navigation toggle presence
+- CORS handling
+- settings permissions
+- frontend route behavior
 
-## 13. Deployment
+Phase-2-specific parsing and CRUD coverage is only partially represented right now. The codebase is ready for additional tests around route validation, weather parsing, conflict flows, and markdown safety.
 
-### Create D1
+## 20. Known Limitations
 
-1. `wrangler d1 create travel-web`
-2. Copy the database id into `wrangler.toml`
+- the trip admin UI is functional and now supports core CRUD editing, but it is still intentionally lightweight
+- publish is a marker-based workflow, not a snapshot-based workflow
+- weather scheduling is not fully automated yet
+- the map bundle is large because MapLibre is loaded for client rendering
+- trip/day/place ordering still does not expose every advanced editing interaction from the phase brief
 
-### Apply Migrations
+## 21. Troubleshooting
 
-1. `wrangler d1 migrations apply travel-web-db --local`
-2. `wrangler d1 migrations apply travel-web-db --remote`
+- If editor/admin login fails, verify the password hashes in `.dev.vars`.
+- If the map page shows a configuration error, confirm `MAPTILER_API_KEY` is set.
+- The place editor uses the same Worker-side `MAPTILER_API_KEY` for forward geocoding. Restrict production keys with MapTiler Allowed HTTP origins to the deployed Cloudflare domain and required local development origins.
+- If weather refresh does not run, verify the session has editor/admin access and a valid CSRF token.
+- If a write request returns `409`, reload the latest record and retry with a fresh `expectedUpdatedAt`.
+- If route uploads fail, validate the GeoJSON geometry type and payload size first.
 
-### Configure Secrets
+## 22. How to Add a Safe Example Trip
 
-Set each secret with `wrangler secret put`:
+Use only fictional placeholders such as:
 
-- `SESSION_SECRET`
-- `AUTH_PASSWORD_HASH`
-- `EDITOR_PASSWORD_HASH`
-- `MAPTILER_API_KEY`
-- `NWS_USER_AGENT`
+- `Example Mountain Loop`
+- `Day 1`
+- `Sample Scenic Point`
+- `Example Viewpoint`
 
-### Preview And Production
+Do not commit:
 
-- Use a Cloudflare preview environment for branch validation.
-- Promote to production after tests and migration validation pass.
-
-### Rollback
-
-- redeploy the previous Worker version
-- restore the previous frontend artifact
-- apply a compensating migration if schema changes need reversal
-
-## 14. Implemented Now
-
-- responsive frontend shell and routes
-- public viewer mode plus elevated login UI
-- Worker auth/session endpoints
-- Worker health endpoint
-- settings read/update endpoint
-- D1 migration and seed users
-- audit log writes for login, logout, and settings updates
-- tests, linting, formatting, and secret-scan script
-
-## 15. Not Implemented Yet
-
-- real trip CRUD
-- map rendering
-- weather provider integration
-- road monitoring jobs
-- checklist persistence
-- notes persistence
-- admin management tools
-- durable distributed rate limiting
-
-## 16. Known Limitations
-
-- frontend currently uses placeholder content for most features
-- local rate limiting is in-memory and best-effort
-- no live D1 integration test runs inside the unit test suite
-- the skeleton expects secrets to be generated externally
-
-## 17. Extension Points
-
-- add new repositories under `worker/db`
-- expand routes in `worker/index.ts`
-- add feature modules under `src/features`
-- replace placeholder pages with D1-backed data flows
-- add scheduled jobs under `worker/scheduled`
-
-## 18. Troubleshooting
-
-- If login always fails, verify the password hashes and format in `.dev.vars`.
-- If protected APIs return `401`, confirm the session cookie is being sent to the Worker origin.
-- If write APIs return `403`, confirm the `X-CSRF-Token` header matches the current session.
-- If migrations fail, verify the D1 binding name and database id in `wrangler.toml`.
-- If secrets are exposed accidentally, rotate them and scrub Git history before sharing the repository.
+- real hotel names tied to an actual booking
+- real travel dates
+- real home addresses
+- real phone numbers
+- real routes that identify a personal itinerary

@@ -179,7 +179,7 @@ describe("worker api", () => {
         },
         body: JSON.stringify({
           ...sampleSettings,
-          weatherRefreshMinutes: 45,
+          weatherRefreshMinutes: 60,
         }),
       }),
       createEnv(),
@@ -189,7 +189,7 @@ describe("worker api", () => {
       data: { weatherRefreshMinutes: number };
     };
     expect(response.status).toBe(200);
-    expect(body.data.weatherRefreshMinutes).toBe(45);
+    expect(body.data.weatherRefreshMinutes).toBe(60);
   });
 
   it("logs out and invalidates the session", async () => {

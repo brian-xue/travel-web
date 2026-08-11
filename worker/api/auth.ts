@@ -89,7 +89,7 @@ export async function login(request: Request, env: WorkerEnv, repositories: Repo
     },
     {
       headers: {
-        "Set-Cookie": buildSessionCookie(token, session.expiresAt),
+        "Set-Cookie": buildSessionCookie(token, session.expiresAt, request.url),
       },
     },
   );
@@ -127,7 +127,7 @@ export async function logout(token: string | null, request: Request, env: Worker
       { success: true },
       {
         headers: {
-          "Set-Cookie": buildClearedSessionCookie(),
+          "Set-Cookie": buildClearedSessionCookie(request.url),
         },
       },
     );
@@ -158,7 +158,7 @@ export async function logout(token: string | null, request: Request, env: Worker
     { success: true },
     {
       headers: {
-        "Set-Cookie": buildClearedSessionCookie(),
+        "Set-Cookie": buildClearedSessionCookie(request.url),
       },
     },
   );

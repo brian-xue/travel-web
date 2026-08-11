@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jsonError, jsonSuccess } from "@worker/lib/response";
+import { buildSessionCookie } from "@worker/lib/session";
 import { isExpired } from "@worker/lib/time";
 import { validateLoginBody, validateSettings } from "@worker/lib/validation";
 import { sampleSettings } from "./fakes";
@@ -43,5 +44,12 @@ describe("worker helper utilities", () => {
   it("validates settings input", () => {
     expect(validateSettings(sampleSettings)).toBe(true);
     expect(validateSettings({ releaseVersion: "0.1.0" })).toBe(false);
+  });
+
+  it("uses non-secure cookies for local loopback development", () => {
+    expect(buildSessionCookie("token", "2026-07-27T00:00:00.000Z", "http://127.0.0.1:8787/api/auth/login")).not.toContain(
+      "Secure",
+    );
+    expect(buildSessionCookie("token", "2026-07-27T00:00:00.000Z", "https://example.com/api/auth/login")).toContain("Secure");
   });
 });

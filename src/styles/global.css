@@ -26,7 +26,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -182,12 +183,123 @@ a {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--outline);
   border-radius: 14px;
   padding: 0.8rem 0.95rem;
   background: white;
+}
+
+textarea {
+  resize: vertical;
+}
+
+label {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stacked-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.three-column-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.title-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.map-surface {
+  min-height: 420px;
+  border-radius: 22px;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.mini-card {
+  border: 1px solid var(--outline);
+  border-radius: 18px;
+  background: var(--surface-strong);
+  padding: 1rem;
+}
+
+.geocoder-field {
+  position: relative;
+}
+
+.geocoder-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+}
+
+.geocoder-option {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 0.7rem 0.8rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.geocoder-option:last-child {
+  border-bottom: 0;
+}
+
+.geocoder-option:hover,
+.geocoder-option[aria-selected="true"] {
+  background: var(--surface-strong);
+}
+
+.geocoder-option span,
+.geocoder-status {
+  font-size: 0.82rem;
+}
+
+.geocoder-status {
+  margin: 0;
+  padding: 0.75rem 0.8rem;
 }
 
 .danger {
@@ -251,5 +363,13 @@ select {
   .page-header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .two-column-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .three-column-grid {
+    grid-template-columns: 1fr;
   }
 }

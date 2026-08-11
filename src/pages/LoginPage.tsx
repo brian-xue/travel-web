@@ -42,7 +42,7 @@ export function LoginPage() {
         </label>
         {error ? <p className="error-text">{error}</p> : null}
         <button className="primary-button" type="submit">
-          Login
+          Sign In as Editor or Admin
         </button>
       </form>
     </div>

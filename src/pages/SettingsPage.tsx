@@ -64,18 +64,19 @@ export function SettingsPage() {
       <div className="settings-form">
         <label>
           Weather refresh minutes
-          <input
-            min={5}
+          <select
             onChange={(event) => {
               setSaved(false);
               setSettings((current) => ({
                 ...current,
-                weatherRefreshMinutes: Number(event.target.value),
+                weatherRefreshMinutes: Number(event.target.value) === 60 ? 60 : 30,
               }));
             }}
-            type="number"
             value={settings.weatherRefreshMinutes}
-          />
+          >
+            <option value={30}>30 minutes</option>
+            <option value={60}>60 minutes</option>
+          </select>
         </label>
         <label>
           Road monitoring mode

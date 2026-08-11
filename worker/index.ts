@@ -1,4 +1,43 @@
 import { getSession, login, logout } from "./api/auth";
+import {
+  addDayPlace,
+  copyTripDay,
+  createChecklistItem,
+  createNote,
+  createPlace,
+  createRoute,
+  createTrip,
+  createTripDay,
+  deleteChecklistItem,
+  deleteNote,
+  deletePlace,
+  deleteRoute,
+  deleteTrip,
+  deleteTripDay,
+  getDashboard,
+  getMapData,
+  getTrip,
+  getWeatherAlerts,
+  getWeatherData,
+  listChecklists,
+  listNotes,
+  listPlaces,
+  listRoutes,
+  listTripDays,
+  listTrips,
+  publishTrip,
+  refreshWeather,
+  removeDayPlace,
+  reorderDayPlaces,
+  reorderTripDays,
+  searchGeocoding,
+  updateChecklistItem,
+  updateNote,
+  updatePlace,
+  updateRoute,
+  updateTrip,
+  updateTripDay,
+} from "./api/content";
 import { handleHealthCheck } from "./api/health";
 import { getSettings, updateSettings } from "./api/settings";
 import { createRepositories } from "./db/repositories";
@@ -85,6 +124,10 @@ export async function handleRequest(request: Request, env: WorkerEnv, repositori
       return applyCorsHeaders(request, handleHealthCheck());
     }
 
+    if (url.pathname === "/api/dashboard" && request.method === "GET") {
+      return applyCorsHeaders(request, await getDashboard(repositories));
+    }
+
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       return applyCorsHeaders(request, await login(request, env, repositories));
     }
@@ -107,6 +150,141 @@ export async function handleRequest(request: Request, env: WorkerEnv, repositori
         request,
         unauthorized ?? (await updateSettings(request, repositories, context.user!, context.session!)),
       );
+    }
+
+    if (url.pathname === "/api/trips" && request.method === "GET") {
+      return applyCorsHeaders(request, await listTrips(repositories));
+    }
+
+    if (url.pathname === "/api/trips" && request.method === "POST") {
+      return applyCorsHeaders(request, await createTrip(request, repositories, context.user, context.session));
+    }
+
+    const tripMatch = url.pathname.match(/^\/api\/trips\/([^/]+)$/);
+    if (tripMatch && request.method === "GET") {
+      return applyCorsHeaders(request, await getTrip(tripMatch[1], repositories));
+    }
+    if (tripMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updateTrip(request, tripMatch[1], repositories, context.user, context.session));
+    }
+    if (tripMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deleteTrip(request, tripMatch[1], repositories, context.user, context.session));
+    }
+
+    const publishMatch = url.pathname.match(/^\/api\/trips\/([^/]+)\/publish$/);
+    if (publishMatch && request.method === "POST") {
+      return applyCorsHeaders(request, await publishTrip(request, publishMatch[1], repositories, context.user, context.session));
+    }
+
+    const tripDaysMatch = url.pathname.match(/^\/api\/trips\/([^/]+)\/days$/);
+    if (tripDaysMatch && request.method === "GET") {
+      return applyCorsHeaders(request, await listTripDays(tripDaysMatch[1], repositories));
+    }
+    if (tripDaysMatch && request.method === "POST") {
+      return applyCorsHeaders(request, await createTripDay(request, tripDaysMatch[1], repositories, context.user, context.session));
+    }
+
+    const dayMatch = url.pathname.match(/^\/api\/days\/([^/]+)$/);
+    if (dayMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updateTripDay(request, dayMatch[1], repositories, context.user, context.session));
+    }
+    if (dayMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deleteTripDay(request, dayMatch[1], repositories, context.user, context.session));
+    }
+
+    const dayCopyMatch = url.pathname.match(/^\/api\/days\/([^/]+)\/copy$/);
+    if (dayCopyMatch && request.method === "POST") {
+      return applyCorsHeaders(request, await copyTripDay(request, dayCopyMatch[1], repositories, context.user, context.session));
+    }
+
+    if (url.pathname === "/api/days/reorder" && request.method === "POST") {
+      return applyCorsHeaders(request, await reorderTripDays(request, repositories, context.user, context.session));
+    }
+
+    if (url.pathname === "/api/places" && request.method === "GET") {
+      return applyCorsHeaders(request, await listPlaces(repositories));
+    }
+    if (url.pathname === "/api/geocoding" && request.method === "GET") {
+      return applyCorsHeaders(request, await searchGeocoding(request, env));
+    }
+    if (url.pathname === "/api/places" && request.method === "POST") {
+      return applyCorsHeaders(request, await createPlace(request, repositories, context.user, context.session));
+    }
+    const placeMatch = url.pathname.match(/^\/api\/places\/([^/]+)$/);
+    if (placeMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updatePlace(request, placeMatch[1], repositories, context.user, context.session));
+    }
+    if (placeMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deletePlace(request, placeMatch[1], repositories, context.user, context.session));
+    }
+
+    const dayPlacesMatch = url.pathname.match(/^\/api\/days\/([^/]+)\/places$/);
+    if (dayPlacesMatch && request.method === "POST") {
+      return applyCorsHeaders(request, await addDayPlace(request, dayPlacesMatch[1], repositories, context.user, context.session));
+    }
+
+    const dayPlaceMatch = url.pathname.match(/^\/api\/day-places\/([^/]+)$/);
+    if (dayPlaceMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await removeDayPlace(request, dayPlaceMatch[1], repositories, context.user, context.session));
+    }
+    if (url.pathname === "/api/day-places/reorder" && request.method === "POST") {
+      return applyCorsHeaders(request, await reorderDayPlaces(request, repositories, context.user, context.session));
+    }
+
+    const dayRoutesMatch = url.pathname.match(/^\/api\/days\/([^/]+)\/routes$/);
+    if (dayRoutesMatch && request.method === "GET") {
+      return applyCorsHeaders(request, await listRoutes(dayRoutesMatch[1], repositories));
+    }
+    if (dayRoutesMatch && request.method === "POST") {
+      return applyCorsHeaders(request, await createRoute(request, dayRoutesMatch[1], repositories, context.user, context.session));
+    }
+    const routeMatch = url.pathname.match(/^\/api\/routes\/([^/]+)$/);
+    if (routeMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updateRoute(request, routeMatch[1], repositories, context.user, context.session));
+    }
+    if (routeMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deleteRoute(request, routeMatch[1], repositories, context.user, context.session));
+    }
+
+    if (url.pathname === "/api/notes" && request.method === "GET") {
+      return applyCorsHeaders(request, await listNotes(request, repositories));
+    }
+    if (url.pathname === "/api/notes" && request.method === "POST") {
+      return applyCorsHeaders(request, await createNote(request, repositories, context.user, context.session));
+    }
+    const noteMatch = url.pathname.match(/^\/api\/notes\/([^/]+)$/);
+    if (noteMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updateNote(request, noteMatch[1], repositories, context.user, context.session));
+    }
+    if (noteMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deleteNote(request, noteMatch[1], repositories, context.user, context.session));
+    }
+
+    if (url.pathname === "/api/checklists" && request.method === "GET") {
+      return applyCorsHeaders(request, await listChecklists(request, repositories));
+    }
+    if (url.pathname === "/api/checklists" && request.method === "POST") {
+      return applyCorsHeaders(request, await createChecklistItem(request, repositories, context.user, context.session));
+    }
+    const checklistMatch = url.pathname.match(/^\/api\/checklists\/([^/]+)$/);
+    if (checklistMatch && request.method === "PUT") {
+      return applyCorsHeaders(request, await updateChecklistItem(request, checklistMatch[1], repositories, context.user, context.session));
+    }
+    if (checklistMatch && request.method === "DELETE") {
+      return applyCorsHeaders(request, await deleteChecklistItem(request, checklistMatch[1], repositories, context.user, context.session));
+    }
+
+    if (url.pathname === "/api/map" && request.method === "GET") {
+      return applyCorsHeaders(request, await getMapData(env, repositories));
+    }
+    if (url.pathname === "/api/weather" && request.method === "GET") {
+      return applyCorsHeaders(request, await getWeatherData(repositories));
+    }
+    if (url.pathname === "/api/weather/alerts" && request.method === "GET") {
+      return applyCorsHeaders(request, await getWeatherAlerts(repositories));
+    }
+    if (url.pathname === "/api/weather/refresh" && request.method === "POST") {
+      return applyCorsHeaders(request, await refreshWeather(request, env, repositories, context.user, context.session));
     }
 
     return applyCorsHeaders(

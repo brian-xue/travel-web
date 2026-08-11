@@ -69,7 +69,7 @@ export function AppLayout({ children }: PropsWithChildren) {
             </button>
           ) : (
             <button className="secondary-button" onClick={() => navigate("/login")} type="button">
-              Editor Login
+              Editor/Admin Login
             </button>
           )}
         </header>
