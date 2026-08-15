@@ -608,7 +608,7 @@ export function AdminTripPage() {
                 Publish Trip
               </button>
               {canAdmin ? (
-                <button className="secondary-button" onClick={() => void removeTrip()} type="button">
+                <button className="danger-button" onClick={() => void removeTrip()} type="button">
                   Delete Trip
                 </button>
               ) : null}
@@ -734,7 +734,7 @@ export function AdminTripPage() {
                         <button className="secondary-button" onClick={() => void addRoute(day.id)} type="button">
                           Add Sample Route
                         </button>
-                        <button className="secondary-button" onClick={() => void removeDay(day)} type="button">
+                        <button className="danger-button" onClick={() => void removeDay(day)} type="button">
                           Delete Day
                         </button>
                       </div>
@@ -849,7 +849,7 @@ export function AdminTripPage() {
                               <h4>{dayPlace.place.name}</h4>
                             </div>
                             {canEdit ? (
-                              <button className="secondary-button" onClick={() => void removeDayPlace(day.id, dayPlace)} type="button">
+                              <button className="danger-button" onClick={() => void removeDayPlace(day.id, dayPlace)} type="button">
                                 Remove Place
                               </button>
                             ) : null}
@@ -878,7 +878,7 @@ export function AdminTripPage() {
                                   <button className="primary-button" onClick={() => void saveRoute(route)} type="button">
                                     Save Route
                                   </button>
-                                  <button className="secondary-button" onClick={() => void removeRoute(route)} type="button">
+                                  <button className="danger-button" onClick={() => void removeRoute(route)} type="button">
                                     Delete Route
                                   </button>
                                 </div>
@@ -934,7 +934,7 @@ export function AdminTripPage() {
                         <button className="primary-button" onClick={() => void savePlace(place)} type="button">
                           Save Place
                         </button>
-                        <button className="secondary-button" onClick={() => void removePlace(place)} type="button">
+                        <button className="danger-button" onClick={() => void removePlace(place)} type="button">
                           Delete Place
                         </button>
                       </div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const crypto = require("crypto");
+import crypto from "node:crypto";
 
 const password = process.argv[2];
 const iterations = Number(process.argv[3] || 210000);
