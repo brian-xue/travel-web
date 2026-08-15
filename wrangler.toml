@@ -7,5 +7,10 @@ binding = "travel_web_db"
 database_name = "travel-web-db"
 database_id = "203859fe-db80-4286-b994-965d461684fc"
 
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
 [vars]
 NWS_USER_AGENT = "travel-web/1.0 contact@example.invalid"
