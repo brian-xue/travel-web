@@ -3,7 +3,7 @@ main = "worker/index.ts"
 compatibility_date = "2026-07-18"
 
 [[d1_databases]]
-binding = "travel_web_db"
+binding = "DB"
 database_name = "travel-web-db"
 database_id = "203859fe-db80-4286-b994-965d461684fc"
 
