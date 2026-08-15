@@ -3,9 +3,9 @@ main = "worker/index.ts"
 compatibility_date = "2026-07-18"
 
 [[d1_databases]]
-binding = "DB"
+binding = "travel_web_db"
 database_name = "travel-web-db"
-database_id = "replace-with-d1-database-id"
+database_id = "203859fe-db80-4286-b994-965d461684fc"
 
 [vars]
 NWS_USER_AGENT = "travel-web/1.0 contact@example.invalid"
