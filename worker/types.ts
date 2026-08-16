@@ -13,6 +13,12 @@ import type {
   PlaceInput,
   RouteInput,
   RouteItem,
+  RoadManualConfirmation,
+  RoadMonitor,
+  RoadMonitorDetail,
+  RoadMonitorInput,
+  RoadStatusSnapshot,
+  RoadUpdateMode,
   Trip,
   TripBundle,
   TripDay,
@@ -86,6 +92,7 @@ export interface SessionsRepository {
 
 export interface AuditLogRepository {
   insert(entry: AuditLogRecord): Promise<void>;
+  list(limit?: number): Promise<Array<AuditLogRecord & { id: string }>>;
 }
 
 export interface ContentRepository {
@@ -135,6 +142,24 @@ export interface ContentRepository {
   replaceWeatherAlerts(items: WeatherAlert[]): Promise<void>;
 }
 
+export interface RoadRepository {
+  list(): Promise<RoadMonitor[]>;
+  get(id: string): Promise<RoadMonitorDetail | null>;
+  create(input: RoadMonitorInput): Promise<RoadMonitor>;
+  update(id: string, input: RoadMonitorInput): Promise<RoadMonitor | null>;
+  delete(id: string): Promise<void>;
+  updateMode(id: string, mode: RoadUpdateMode): Promise<RoadMonitor | null>;
+  updateAllModes(mode: RoadUpdateMode): Promise<RoadMonitor[]>;
+  due(now: string): Promise<RoadMonitor[]>;
+  markAttempt(id: string, attemptedAt: string, errorCode?: string, errorMessage?: string): Promise<void>;
+  saveFailureSnapshot(snapshot: RoadStatusSnapshot, errorCode: string, errorMessage: string): Promise<void>;
+  saveSnapshot(snapshot: RoadStatusSnapshot, state: { lastSuccessAt: string; lastChangedAt: string | null }): Promise<void>;
+  addConfirmation(confirmation: RoadManualConfirmation): Promise<RoadManualConfirmation>;
+  clearConfirmation(id: string): Promise<void>;
+  linkDay(roadMonitorId: string, tripDayId: string, sortOrder: number, note: string): Promise<void>;
+  unlinkDay(roadMonitorId: string, tripDayId: string): Promise<void>;
+}
+
 export interface WorkerEnv {
   DB: D1DatabaseLike;
   MAPTILER_API_KEY?: string;
@@ -150,4 +175,5 @@ export interface Repositories {
   sessions: SessionsRepository;
   auditLog: AuditLogRepository;
   content: ContentRepository;
+  roads: RoadRepository;
 }

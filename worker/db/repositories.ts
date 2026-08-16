@@ -23,6 +23,7 @@ import type {
   WeatherSnapshot,
 } from "@/lib/api";
 import type {
+  AuditLogRecord,
   AuditLogRepository,
   ContentRepository,
   D1DatabaseLike,
@@ -35,6 +36,7 @@ import type {
   UsersRepository,
   WorkerEnv,
 } from "../types";
+import { D1RoadRepository } from "../roads/repository";
 
 async function first<T>(statement: D1PreparedStatementLike) {
   const result = await statement.first<T>();
@@ -172,6 +174,10 @@ class D1AuditLogRepository implements AuditLogRepository {
         entry.createdAt,
       )
       .run();
+  }
+
+  async list(limit = 50) {
+    return all<AuditLogRecord & { id: string }>(this.db.prepare("SELECT id, actor_user_id as actorUserId, action, entity_type as entityType, entity_id as entityId, metadata_json as metadataJson, created_at as createdAt FROM audit_log ORDER BY created_at DESC LIMIT ?").bind(Math.min(Math.max(limit, 1), 100)));
   }
 }
 
@@ -1059,5 +1065,6 @@ export function createRepositories(env: WorkerEnv): Repositories {
     sessions: new D1SessionsRepository(env.DB),
     auditLog: new D1AuditLogRepository(env.DB),
     content: new D1ContentRepository(env.DB),
+    roads: new D1RoadRepository(env.DB),
   };
 }

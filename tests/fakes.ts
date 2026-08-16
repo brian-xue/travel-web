@@ -1,4 +1,4 @@
-import type { AppSettings, ChecklistInput, NoteInput, PlaceInput, TripDayInput, TripInput } from "@/lib/api";
+import type { AppSettings, ChecklistInput, NoteInput, PlaceInput, RoadManualConfirmation, RoadMonitor, RoadMonitorDetail, RoadMonitorInput, RoadStatusSnapshot, RoadUpdateMode, TripDayInput, TripInput } from "@/lib/api";
 import type {
   AuditLogRecord,
   AuditLogRepository,
@@ -9,6 +9,7 @@ import type {
   SettingsRepository,
   UserRecord,
   UsersRepository,
+  RoadRepository,
 } from "@worker/types";
 
 export const sampleSettings: AppSettings = {
@@ -100,6 +101,10 @@ class MemoryAuditLogRepository implements AuditLogRepository {
 
   async insert(entry: AuditLogRecord) {
     this.entries.push(entry);
+  }
+
+  async list() {
+    return this.entries.map((entry, index) => ({ id: String(index), ...entry })).reverse();
   }
 }
 
@@ -280,6 +285,33 @@ class MemoryContentRepository implements ContentRepository {
   async replaceWeatherAlerts() {}
 }
 
+class MemoryRoadRepository implements RoadRepository {
+  roads: RoadMonitor[] = [];
+  async list() { return this.roads; }
+  async get(id: string): Promise<RoadMonitorDetail | null> {
+    const road = this.roads.find((item) => item.id === id);
+    return road ? { ...road, history: road.currentSnapshot ? [road.currentSnapshot] : [], confirmations: [], dayLinks: [] } : null;
+  }
+  async create(input: RoadMonitorInput) {
+    const timestamp = new Date().toISOString();
+    const road: RoadMonitor = { ...input, id: "road-test", manualStatusOverride: null, lastAttemptAt: null, lastSuccessAt: null, lastChangedAt: null, lastErrorCode: null, lastErrorMessage: null, createdAt: timestamp, updatedAt: timestamp, currentSnapshot: null };
+    this.roads = [road];
+    return road;
+  }
+  async update(id: string, input: RoadMonitorInput) { const current = this.roads.find((item) => item.id === id); if (!current) return null; const updated = { ...current, ...input, updatedAt: new Date().toISOString() }; this.roads = [updated]; return updated; }
+  async delete(id: string) { this.roads = this.roads.filter((road) => road.id !== id); }
+  async updateMode(id: string, mode: RoadUpdateMode) { const current = this.roads.find((item) => item.id === id); if (!current) return null; return this.update(id, { ...current, updateMode: mode }); }
+  async updateAllModes(mode: RoadUpdateMode) { this.roads = this.roads.map((road) => ({ ...road, updateMode: mode })); return this.roads; }
+  async due() { return this.roads.filter((road) => road.enabled && road.updateMode !== "paused"); }
+  async markAttempt(id: string, attemptedAt: string, errorCode?: string, errorMessage?: string) { const road = this.roads.find((item) => item.id === id); if (road) Object.assign(road, { lastAttemptAt: attemptedAt, lastErrorCode: errorCode ?? null, lastErrorMessage: errorMessage ?? null }); }
+  async saveFailureSnapshot(snapshot: RoadStatusSnapshot, errorCode: string, errorMessage: string) { await this.markAttempt(snapshot.roadMonitorId, snapshot.fetchedAt, errorCode, errorMessage); }
+  async saveSnapshot(snapshot: RoadStatusSnapshot) { const road = this.roads.find((item) => item.id === snapshot.roadMonitorId); if (road) Object.assign(road, { currentSnapshot: snapshot, lastSuccessAt: snapshot.fetchedAt, lastAttemptAt: snapshot.fetchedAt, lastErrorCode: null, lastErrorMessage: null }); }
+  async addConfirmation(confirmation: RoadManualConfirmation) { const road = this.roads.find((item) => item.id === confirmation.roadMonitorId); if (road) Object.assign(road, { manualStatusOverride: confirmation.confirmedStatus, manualNote: confirmation.note }); return confirmation; }
+  async clearConfirmation(id: string) { const road = this.roads.find((item) => item.id === id); if (road) Object.assign(road, { manualStatusOverride: null, manualNote: "" }); }
+  async linkDay() {}
+  async unlinkDay() {}
+}
+
 export function createMemoryRepositories(): Repositories & {
   settings: MemorySettingsRepository;
   users: MemoryUsersRepository;
@@ -292,5 +324,6 @@ export function createMemoryRepositories(): Repositories & {
     sessions: new MemorySessionsRepository(),
     auditLog: new MemoryAuditLogRepository(),
     content: new MemoryContentRepository(),
+    roads: new MemoryRoadRepository(),
   };
 }

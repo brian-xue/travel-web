@@ -315,6 +315,60 @@ label {
   margin-top: 1rem;
 }
 
+.road-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.road-editor {
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+}
+
+.road-card {
+  margin-top: 0;
+}
+
+.road-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.road-status-open {
+  background: #d9f5e8;
+  color: #146c43;
+}
+
+.road-status-open_with_caution,
+.road-status-delayed,
+.road-status-restricted,
+.road-status-partially_closed {
+  background: #fff0c2;
+  color: #7a5100;
+}
+
+.road-status-closed,
+.road-status-seasonal_closure,
+.road-status-fetch_failed,
+.road-status-manual_review_required {
+  background: #ffe0dc;
+  color: #8f1d14;
+}
+
+.road-status-unknown {
+  background: #e8edf0;
+  color: #425761;
+}
+
 .mini-card {
   border: 1px solid var(--outline);
   border-radius: 18px;
@@ -440,5 +494,13 @@ label {
 
   .three-column-grid {
     grid-template-columns: 1fr;
+  }
+
+  .road-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .road-editor {
+    position: static;
   }
 }

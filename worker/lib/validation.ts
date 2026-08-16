@@ -8,6 +8,9 @@ import type {
   RouteInput,
   TripDayInput,
   TripInput,
+  RoadMonitorInput,
+  RoadStatus,
+  RoadUpdateMode,
 } from "@/lib/api";
 
 const MAX_MARKDOWN_LENGTH = 10_000;
@@ -180,6 +183,26 @@ export function validateRouteInput(payload: unknown): payload is RouteInput {
   }
   const value = payload as RouteInput;
   return validateTitle(value.name) && typeof value.geojson === "string" && typeof value.styleJson === "string";
+}
+
+const ROAD_STATUSES: RoadStatus[] = ["open", "open_with_caution", "delayed", "restricted", "partially_closed", "closed", "seasonal_closure", "unknown", "fetch_failed", "manual_review_required"];
+const ROAD_MODES: RoadUpdateMode[] = ["paused", "daily", "hourly"];
+
+export function validateRoadMonitorInput(payload: unknown): payload is RoadMonitorInput {
+  if (!payload || typeof payload !== "object") return false;
+  const value = payload as RoadMonitorInput;
+  if (!validateTitle(value.name) || typeof value.description !== "string" || value.description.length > MAX_MARKDOWN_LENGTH || !validateOptionalUrl(value.officialUrl) || !value.officialUrl) return false;
+  if (!['api', 'json', 'rss', 'html', 'manual', 'unsupported'].includes(value.sourceType)) return false;
+  if (!['generic_json', 'generic_rss', 'keyword_html', 'custom_adapter', 'manual_only'].includes(value.parserType)) return false;
+  return typeof value.parserConfigJson === "string" && value.parserConfigJson.length <= 50_000 && ROAD_MODES.includes(value.updateMode) && Number.isInteger(value.minimumIntervalMinutes) && value.minimumIntervalMinutes >= 1 && value.minimumIntervalMinutes <= 10080 && typeof value.enabled === "boolean" && typeof value.manualNote === "string" && value.manualNote.length <= MAX_MARKDOWN_LENGTH;
+}
+
+export function validateRoadStatus(value: unknown): value is RoadStatus {
+  return typeof value === "string" && ROAD_STATUSES.includes(value as RoadStatus);
+}
+
+export function validateRoadMode(value: unknown): value is RoadUpdateMode {
+  return typeof value === "string" && ROAD_MODES.includes(value as RoadUpdateMode);
 }
 
 export function validateRouteGeoJson(rawGeoJson: string) {

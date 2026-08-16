@@ -23,6 +23,21 @@ export type PlaceType =
 export type NoteCategory = "driving" | "altitude" | "weather" | "park" | "safety" | "packing" | "custom";
 export type ChecklistListType = "shopping" | "packing" | "car" | "document" | "custom";
 export type ChecklistStatus = "pending" | "purchased" | "packed" | "loaded" | "skipped";
+export type RoadSourceType = "api" | "json" | "rss" | "html" | "manual" | "unsupported";
+export type RoadParserType = "generic_json" | "generic_rss" | "keyword_html" | "custom_adapter" | "manual_only";
+export type RoadUpdateMode = "paused" | "daily" | "hourly";
+export type RoadStatus =
+  | "open"
+  | "open_with_caution"
+  | "delayed"
+  | "restricted"
+  | "partially_closed"
+  | "closed"
+  | "seasonal_closure"
+  | "unknown"
+  | "fetch_failed"
+  | "manual_review_required";
+export type RoadSeverity = "info" | "low" | "medium" | "high" | "critical" | "unknown";
 
 export interface AppSettings {
   weatherRefreshMinutes: 30 | 60;
@@ -210,6 +225,106 @@ export interface WeatherData {
   alerts: WeatherAlert[];
   refreshedAt: string | null;
   stale: boolean;
+}
+
+export interface RoadStatusSnapshot {
+  id: string;
+  roadMonitorId: string;
+  normalizedStatus: RoadStatus;
+  severity: RoadSeverity;
+  summary: string;
+  sourceUpdatedAt: string | null;
+  fetchedAt: string;
+  contentHash: string;
+  rawExcerpt: string;
+  rawPayloadJson: string;
+  isManual: boolean;
+  stale: boolean;
+  createdAt: string;
+}
+
+export interface RoadManualConfirmation {
+  id: string;
+  roadMonitorId: string;
+  confirmedStatus: RoadStatus;
+  note: string;
+  confirmedBy: string;
+  confirmedAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface RoadMonitorDayLink {
+  id: string;
+  roadMonitorId: string;
+  tripDayId: string;
+  sortOrder: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface RoadMonitor {
+  id: string;
+  name: string;
+  description: string;
+  officialUrl: string;
+  sourceType: RoadSourceType;
+  parserType: RoadParserType;
+  parserConfigJson: string;
+  updateMode: RoadUpdateMode;
+  minimumIntervalMinutes: number;
+  enabled: boolean;
+  manualStatusOverride: RoadStatus | null;
+  manualNote: string;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastChangedAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentSnapshot: RoadStatusSnapshot | null;
+}
+
+export interface RoadMonitorDetail extends RoadMonitor {
+  history: RoadStatusSnapshot[];
+  confirmations: RoadManualConfirmation[];
+  dayLinks: RoadMonitorDayLink[];
+}
+
+export interface RoadMonitorInput {
+  name: string;
+  description: string;
+  officialUrl: string;
+  sourceType: RoadSourceType;
+  parserType: RoadParserType;
+  parserConfigJson: string;
+  updateMode: RoadUpdateMode;
+  minimumIntervalMinutes: number;
+  enabled: boolean;
+  manualNote: string;
+}
+
+export interface AdminExport {
+  schemaVersion: 1;
+  exportedAt: string;
+  data: {
+    settings: AppSettings;
+    trips: Trip[];
+    tripBundles: TripBundle[];
+    places: Place[];
+    roadMonitors: RoadMonitor[];
+  };
+}
+
+export interface AuditLogItem {
+  id: string;
+  actorUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadataJson: string;
+  createdAt: string;
 }
 
 export interface ConflictAwareInput {
@@ -522,5 +637,93 @@ export const api = {
     request<WeatherData>("/api/weather/refresh", {
       method: "POST",
       headers: { "X-CSRF-Token": csrfToken },
+    }),
+  listRoadMonitors: () => request<RoadMonitor[]>("/api/roads"),
+  getRoadMonitor: (roadId: string) => request<RoadMonitorDetail>(`/api/roads/${roadId}`),
+  createRoadMonitor: (input: RoadMonitorInput, csrfToken: string) =>
+    request<RoadMonitor>("/api/roads", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(input),
+    }),
+  updateRoadMonitor: (roadId: string, input: RoadMonitorInput, csrfToken: string) =>
+    request<RoadMonitor>(`/api/roads/${roadId}`, {
+      method: "PUT",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(input),
+    }),
+  deleteRoadMonitor: (roadId: string, csrfToken: string) =>
+    request<{ success: true }>(`/api/roads/${roadId}`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  refreshRoadMonitor: (roadId: string, csrfToken: string) =>
+    request<RoadMonitor>(`/api/roads/${roadId}/refresh`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  testRoadParser: (roadId: string, csrfToken: string) =>
+    request<{ persisted: false; normalized: { normalizedStatus: RoadStatus; severity: RoadSeverity; summary: string } }>(`/api/roads/${roadId}/test-parser`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  refreshAllRoadMonitors: (csrfToken: string) =>
+    request<RoadMonitor[]>("/api/roads/refresh-all", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  confirmRoadStatus: (roadId: string, confirmedStatus: RoadStatus, note: string, expiresAt: string | null, csrfToken: string) =>
+    request<RoadManualConfirmation>(`/api/roads/${roadId}/manual-confirmation`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ confirmedStatus, note, expiresAt }),
+    }),
+  clearRoadConfirmation: (roadId: string, csrfToken: string) =>
+    request<{ success: true }>(`/api/roads/${roadId}/manual-confirmation`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  linkRoadDay: (roadId: string, tripDayId: string, note: string, csrfToken: string) =>
+    request<{ success: true }>(`/api/roads/${roadId}/days`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ tripDayId, note }),
+    }),
+  unlinkRoadDay: (roadId: string, tripDayId: string, csrfToken: string) =>
+    request<{ success: true }>(`/api/roads/${roadId}/days/${tripDayId}`, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  updateRoadMode: (roadId: string, updateMode: RoadUpdateMode, csrfToken: string) =>
+    request<RoadMonitor>(`/api/roads/${roadId}/update-mode`, {
+      method: "PUT",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ updateMode }),
+    }),
+  updateAllRoadModes: (updateMode: RoadUpdateMode, csrfToken: string) =>
+    request<RoadMonitor[]>("/api/roads/update-mode/all", {
+      method: "PUT",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ updateMode }),
+    }),
+  exportAdminData: (csrfToken: string) =>
+    request<AdminExport>("/api/admin/export", {
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  getAuditLog: (csrfToken: string) =>
+    request<AuditLogItem[]>("/api/admin/audit", {
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  previewAdminImport: (payload: unknown, csrfToken: string) =>
+    request<{ schemaVersion: number; mode: "merge" | "replace"; counts: Record<string, number> }>("/api/admin/import/preview", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify(payload),
+    }),
+  applyAdminImport: (payload: unknown, mode: "merge" | "replace", csrfToken: string) =>
+    request<{ success: true; importedRoadMonitors: number }>("/api/admin/import/apply", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+      body: JSON.stringify({ payload, mode }),
     }),
 };

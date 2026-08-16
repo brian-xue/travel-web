@@ -14,3 +14,6 @@ run_worker_first = ["/api/*"]
 
 [vars]
 NWS_USER_AGENT = "travel-web/1.0 contact@example.invalid"
+
+[triggers]
+crons = ["0 * * * *"]

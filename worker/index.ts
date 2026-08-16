@@ -1,4 +1,6 @@
 import { getSession, login, logout } from "./api/auth";
+import { applyAdminImport, exportAdminData, previewAdminImport } from "./api/admin";
+import { jsonError, jsonSuccess } from "./lib/response";
 import {
   addDayPlace,
   copyTripDay,
@@ -40,11 +42,27 @@ import {
 } from "./api/content";
 import { handleHealthCheck } from "./api/health";
 import { getSettings, updateSettings } from "./api/settings";
+import {
+  clearRoadConfirmation,
+  confirmRoad,
+  createRoadMonitor,
+  deleteRoadMonitor,
+  getRoadMonitor,
+  listRoadMonitors,
+  refreshAllRoads,
+  refreshRoad,
+  testRoadParser,
+  linkRoadDay,
+  unlinkRoadDay,
+  updateAllRoadModes,
+  updateRoadMode,
+  updateRoadMonitor,
+} from "./api/roads";
 import { createRepositories } from "./db/repositories";
 import { getSessionTokenFromCookie, hashSessionToken } from "./lib/session";
 import { isExpired } from "./lib/time";
-import { jsonError } from "./lib/response";
 import type { Repositories, WorkerEnv } from "./types";
+import { runRoadMonitorCycle } from "./roads/scheduler";
 
 const LOCAL_DEV_ORIGINS = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
 
@@ -287,6 +305,35 @@ export async function handleRequest(request: Request, env: WorkerEnv, repositori
       return applyCorsHeaders(request, await refreshWeather(request, env, repositories, context.user, context.session));
     }
 
+    if (url.pathname === "/api/admin/export" && request.method === "GET") return applyCorsHeaders(request, await exportAdminData(request, repositories, context.user, context.session));
+    if (url.pathname === "/api/admin/audit" && request.method === "GET") {
+      if (context.user?.role !== "admin" || !context.session || request.headers.get("X-CSRF-Token") !== context.session.csrfToken) return applyCorsHeaders(request, jsonError(403, { code: "FORBIDDEN", message: "Admin access and CSRF token are required" }));
+      return applyCorsHeaders(request, jsonSuccess(await repositories.auditLog.list()));
+    }
+    if (url.pathname === "/api/admin/import/preview" && request.method === "POST") return applyCorsHeaders(request, await previewAdminImport(request, repositories, context.user, context.session));
+    if (url.pathname === "/api/admin/import/apply" && request.method === "POST") return applyCorsHeaders(request, await applyAdminImport(request, repositories, context.user, context.session));
+
+    if (url.pathname === "/api/roads" && request.method === "GET") return applyCorsHeaders(request, await listRoadMonitors(repositories));
+    if (url.pathname === "/api/roads" && request.method === "POST") return applyCorsHeaders(request, await createRoadMonitor(request, repositories, context.user, context.session));
+    if (url.pathname === "/api/roads/refresh-all" && request.method === "POST") return applyCorsHeaders(request, await refreshAllRoads(request, repositories, context.user, context.session));
+    if (url.pathname === "/api/roads/update-mode/all" && request.method === "PUT") return applyCorsHeaders(request, await updateAllRoadModes(request, repositories, context.user, context.session));
+    const roadMatch = url.pathname.match(/^\/api\/roads\/([^/]+)$/);
+    if (roadMatch && request.method === "GET") return applyCorsHeaders(request, await getRoadMonitor(roadMatch[1], repositories));
+    if (roadMatch && request.method === "PUT") return applyCorsHeaders(request, await updateRoadMonitor(request, roadMatch[1], repositories, context.user, context.session));
+    if (roadMatch && request.method === "DELETE") return applyCorsHeaders(request, await deleteRoadMonitor(request, roadMatch[1], repositories, context.user, context.session));
+    const roadRefreshMatch = url.pathname.match(/^\/api\/roads\/([^/]+)\/refresh$/);
+    if (roadRefreshMatch && request.method === "POST") return applyCorsHeaders(request, await refreshRoad(request, roadRefreshMatch[1], repositories, context.user, context.session));
+    const roadTestMatch = url.pathname.match(/^\/api\/roads\/([^/]+)\/test-parser$/);
+    if (roadTestMatch && request.method === "POST") return applyCorsHeaders(request, await testRoadParser(request, roadTestMatch[1], repositories, context.user, context.session));
+    const roadModeMatch = url.pathname.match(/^\/api\/roads\/([^/]+)\/update-mode$/);
+    if (roadModeMatch && request.method === "PUT") return applyCorsHeaders(request, await updateRoadMode(request, roadModeMatch[1], repositories, context.user, context.session));
+    const roadConfirmationMatch = url.pathname.match(/^\/api\/roads\/([^/]+)\/manual-confirmation$/);
+    if (roadConfirmationMatch && request.method === "POST") return applyCorsHeaders(request, await confirmRoad(request, roadConfirmationMatch[1], repositories, context.user, context.session));
+    if (roadConfirmationMatch && request.method === "DELETE") return applyCorsHeaders(request, await clearRoadConfirmation(request, roadConfirmationMatch[1], repositories, context.user, context.session));
+    const roadDayLinkMatch = url.pathname.match(/^\/api\/roads\/([^/]+)\/days(?:\/([^/]+))?$/);
+    if (roadDayLinkMatch && request.method === "POST") return applyCorsHeaders(request, await linkRoadDay(request, roadDayLinkMatch[1], repositories, context.user, context.session));
+    if (roadDayLinkMatch?.[2] && request.method === "DELETE") return applyCorsHeaders(request, await unlinkRoadDay(request, roadDayLinkMatch[1], roadDayLinkMatch[2], repositories, context.user, context.session));
+
     return applyCorsHeaders(
       request,
       jsonError(404, {
@@ -308,5 +355,8 @@ export async function handleRequest(request: Request, env: WorkerEnv, repositori
 export default {
   fetch(request: Request, env: WorkerEnv) {
     return handleRequest(request, env);
+  },
+  async scheduled(_controller: ScheduledController, env: WorkerEnv) {
+    await runRoadMonitorCycle(createRepositories(env).roads);
   },
 };

@@ -2,14 +2,15 @@
 
 ## 1. Project Goal
 
-`travel-web` is a personal travel planning workspace for a fictional sample trip. The codebase supports read-only viewer access, password-protected editor/admin sessions, trip planning, place management, route uploads, weather caching, notes, and checklists without storing real travel details in source control.
+`travel-web` is a personal travel planning workspace for a fictional sample trip. The codebase supports read-only viewer access, password-protected editor/admin sessions, trip planning, place management, route uploads, weather caching, notes, checklists, and small configurable road monitoring without storing real travel details in source control.
 
 ## 2. Current Phase
 
-As of Tuesday, August 11, 2026, the repository contains:
+As of August 15, 2026, the repository contains:
 
 - Phase 1 foundations: auth, sessions, D1 bootstrap, settings, shared UI shell
 - Phase 2 additions: trip domain models, trip editor, map view, weather cache flow, notes, checklists, and supporting APIs
+- Phase 3 additions: configurable road monitors, safe source adapters, hourly scheduling, status history, manual confirmations, road operations UI, and admin application export/import boundaries
 
 ## 3. Tech Stack
 
@@ -348,7 +349,7 @@ The helpers properly encode place names and lat/lon values before building Googl
 
 ### Cron
 
-The current Worker code is prepared for server-side refresh behavior, but a full scheduled refresh path is still a follow-up item. Manual refresh and D1 cache persistence are already implemented.
+Weather refresh remains manual and editor/admin controlled. Road monitoring has a separate hourly Cron scheduler described in the Phase 3 section below; it does not automatically refresh weather.
 
 ## 17. Notes and Checklists
 
@@ -431,3 +432,76 @@ Do not commit:
 - real home addresses
 - real phone numbers
 - real routes that identify a personal itinerary
+
+## 23. Road Monitoring Architecture
+
+Phase 3 adds a deliberately small, configuration-driven road monitoring subsystem. It is not a navigation replacement, traffic feed, automatic detour engine, or unrestricted crawler.
+
+### Road files
+
+- `worker/roads/types.ts` defines adapter inputs, raw results, normalized status, and source errors.
+- `worker/roads/adapters/safe-fetch.ts` validates public HTTPS URLs, blocks common private/internal targets, disables redirects, limits response size, and applies a timeout.
+- `worker/roads/adapters/generic-json.ts` reads configured JSON paths without executing configuration code.
+- `worker/roads/adapters/generic-rss.ts` extracts bounded RSS/Atom title and description text.
+- `worker/roads/adapters/keyword-html.ts` strips scripts/markup and applies explicit status keywords to a short excerpt.
+- `worker/roads/adapters/manual-only.ts` represents sources that require human confirmation.
+- `worker/roads/scheduler.ts` applies update modes, minimum intervals, content hashes, failure snapshots, and last-changed timestamps.
+- `worker/roads/repository.ts` owns D1 queries for monitors, snapshots, confirmations, and day links.
+- `worker/api/roads.ts` owns permissions, CSRF checks, validation, audit events, and API envelopes.
+
+### Road data flow
+
+The hourly Cron trigger in `wrangler.toml` invokes the Worker's `scheduled` handler. The scheduler reads enabled due monitors, selects an adapter, performs a bounded request, normalizes the result, computes a SHA-256 content hash, and stores a snapshot. A failure creates a `fetch_failed` snapshot and marks the monitor error fields; it does not silently retain a green/open state.
+
+The normalized status set is `open`, `open_with_caution`, `delayed`, `restricted`, `partially_closed`, `closed`, `seasonal_closure`, `unknown`, `fetch_failed`, and `manual_review_required`. Every result keeps the official URL, fetched time, optional source update time, severity, excerpt, and hash. Manual confirmations have an expiry and do not replace automatic history.
+
+### Road schema
+
+Migration `migrations/0003_road_monitoring.sql` creates `road_monitors`, `road_status_snapshots`, `road_monitor_day_links`, and `road_manual_confirmations`, with foreign keys and indexes for scheduling, history, day links, and confirmation expiry. D1 stores timestamps as the existing ISO text format.
+
+### Road API and UI
+
+- `GET /api/roads` and `GET /api/roads/:id` are viewer-readable.
+- `POST|PUT|DELETE /api/roads` and `/api/roads/:id` require editor/admin access and CSRF.
+- `POST /api/roads/:id/refresh` and `POST /api/roads/refresh-all` provide bounded manual refresh.
+- `PUT /api/roads/:id/update-mode` and `PUT /api/roads/update-mode/all` change paused/daily/hourly modes.
+- `POST|DELETE /api/roads/:id/manual-confirmation` manage human confirmation.
+- `/roads` shows status text, severity, source link, freshness, errors, history, and editor controls.
+
+## 24. Import, Export, and Audit Boundaries
+
+Admins can export a versioned application JSON envelope through `/api/admin/export`. The current export contains settings, trips, trip bundles, places, and road monitor configurations; it excludes sessions, password hashes, secrets, and Cloudflare configuration. Import preview validates `schemaVersion: 1` and reports counts. Import apply currently merges or replaces road monitor configurations only, avoiding accidental overwrites of trip and credential data.
+
+Mutating settings, trip content, road operations, manual confirmations, and admin import/export create audit records through the existing `audit_log` table. Audit metadata must not contain session tokens, secrets, cookies, or full fetched pages.
+
+## 25. Cloudflare Runtime and Deployment
+
+The Vite frontend is built to `dist` and served with the Worker asset configuration. `/api/*` is handled by the Worker, while D1 is bound as `DB`. The Worker uses `MAPTILER_API_KEY`, authentication hashes, and `SESSION_SECRET` as secrets. The hourly Cron is configured in `wrangler.toml`; deployments should apply D1 migrations before `npx wrangler deploy`.
+
+See [CLOUDFLARE_GITHUB_DEPLOYMENT.md](/Users/brian/Documents/travel-website/docs/CLOUDFLARE_GITHUB_DEPLOYMENT.md), [OPERATIONS.md](/Users/brian/Documents/travel-website/docs/OPERATIONS.md), and [SECURITY.md](/Users/brian/Documents/travel-website/docs/SECURITY.md) for deployment, daily operation, and security boundaries.
+
+## 26. Local Development and Testing
+
+Use `.dev.vars` for local Worker secrets and run the Vite frontend plus `wrangler dev` for the API. Road adapter tests should use injected fetchers and fictional URLs; they must never access real sources or keys. Migration tests apply all numbered migrations to a temporary SQLite database. The release gate is:
+
+```bash
+npm run check:secrets
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+## 27. Known Limitations and Extension Points
+
+- Road refresh is bounded by a simple hourly Cron and D1 timestamps; it is not a high-frequency monitor.
+- The generic adapters intentionally do not execute remote code or support arbitrary user regular expressions.
+- Import apply is currently road-configuration-only; full trip data import requires a separately reviewed identity/conflict design.
+- Audit viewing is available through the audit API surface as it is extended; sensitive metadata must remain server-side.
+- The current CORS allow-list must be updated for a production Pages origin when frontend and Worker use different hostnames.
+
+To add a new road source, implement a single adapter with independent tests, keep the URL in D1, return a normalized status with a bounded excerpt and source timestamp, and document its failure conditions here. To add a page or API, follow the existing `src/pages`, `src/lib/api.ts`, `worker/api`, repository, permission, CORS, test, and documentation layers rather than bypassing them.
+
+## 28. Recovery and Secret Hygiene
+
+Use a D1 export or Cloudflare backup before destructive maintenance; application JSON export is not a full database backup. Never commit `.dev.vars`, `.env`, password hashes, MapTiler keys, Cloudflare tokens, real roads, or real travel dates. Run `npm run check:secrets`, inspect the Git diff, and rotate a provider secret immediately if exposure is suspected.

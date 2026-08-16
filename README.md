@@ -44,3 +44,5 @@ For production, restrict the MapTiler key in the MapTiler console with Allowed H
 ## More Detail
 
 See [docs/ARCHITECTURE_AND_FEATURES.md](/Users/brian/Documents/travel-website/docs/ARCHITECTURE_AND_FEATURES.md) for architecture, auth, API design, testing, deployment, and known limitations.
+See [docs/CLOUDFLARE_GITHUB_DEPLOYMENT.md](/Users/brian/Documents/travel-website/docs/CLOUDFLARE_GITHUB_DEPLOYMENT.md) for the complete GitHub, Cloudflare Pages, Workers, and D1 deployment procedure.
+See [docs/OPERATIONS.md](/Users/brian/Documents/travel-website/docs/OPERATIONS.md) for daily road/weather operations and [docs/SECURITY.md](/Users/brian/Documents/travel-website/docs/SECURITY.md) for authentication, SSRF, secret, and external-source boundaries.

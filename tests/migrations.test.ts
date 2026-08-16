@@ -16,7 +16,8 @@ function runSqlite(dbPath: string, sql: string) {
 function applyMigrations(dbPath: string) {
   const migration1 = fs.readFileSync(path.resolve("migrations/0001_initial.sql"), "utf8");
   const migration2 = fs.readFileSync(path.resolve("migrations/0002_trip_domain.sql"), "utf8");
-  runSqlite(dbPath, `${migration1}\n${migration2}`);
+  const migration3 = fs.readFileSync(path.resolve("migrations/0003_road_monitoring.sql"), "utf8");
+  runSqlite(dbPath, `${migration1}\n${migration2}\n${migration3}`);
 }
 
 afterEach(() => {
@@ -92,5 +93,19 @@ describe("phase 2 migrations", () => {
       "idx_weather_alerts_expires_at",
       "idx_weather_snapshots_place_fetched",
     ]);
+  });
+});
+
+describe("phase 3 migrations", () => {
+  it("creates road monitoring tables and indexes", () => {
+    const dbPath = path.join(os.tmpdir(), `travel-web-road-migration-${crypto.randomUUID()}.sqlite`);
+    createdFiles.push(dbPath);
+    applyMigrations(dbPath);
+    const tables = runSqlite(dbPath, "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'road_%' ORDER BY name;");
+    expect(tables.split("\n")).toEqual(["road_manual_confirmations", "road_monitor_day_links", "road_monitors", "road_status_snapshots"]);
+    const indexes = runSqlite(dbPath, "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_road_%' ORDER BY name;");
+    expect(indexes.split("\n")).toContain("idx_road_snapshots_monitor_fetched");
+    expect(runSqlite(dbPath, "PRAGMA table_info(road_monitors);")).toContain("minimum_interval_minutes");
+    expect(runSqlite(dbPath, "PRAGMA table_info(road_status_snapshots);")).toContain("content_hash");
   });
 });

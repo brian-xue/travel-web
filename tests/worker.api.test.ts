@@ -151,6 +151,33 @@ describe("worker api", () => {
     expect(response.status).toBe(200);
   });
 
+  it("allows viewers to read road monitors but requires editor auth to create one", async () => {
+    const repositories = createMemoryRepositories();
+    const viewerResponse = await handleRequest(new Request("https://example.com/api/roads"), createEnv(), repositories);
+    expect(viewerResponse.status).toBe(200);
+
+    const unauthenticatedResponse = await handleRequest(
+      new Request("https://example.com/api/roads", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Example Mountain Road",
+          description: "Fictional monitor",
+          officialUrl: "https://example.com/road-status",
+          sourceType: "manual",
+          parserType: "manual_only",
+          parserConfigJson: "{}",
+          updateMode: "daily",
+          minimumIntervalMinutes: 1440,
+          enabled: true,
+          manualNote: "",
+        }),
+      }),
+      createEnv(),
+      repositories,
+    );
+    expect(unauthenticatedResponse.status).toBe(403);
+  });
+
   it("requires editor or admin auth for settings updates", async () => {
     const response = await handleRequest(
       new Request("https://example.com/api/settings", {
